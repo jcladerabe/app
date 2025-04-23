@@ -1,19 +1,38 @@
 pipeline {
   agent any
 
+  environment {
+    DOCKER_IMAGE = "jcladerabe/miapp:latest"
+  }
+
   stages {
-    stage('Build Docker Image') {
+    stage('Clonar repo') {
+      steps {
+        git branch: 'main', url: 'git@github.com:jcladerabe/app.git'
+      }
+    }
+
+    stage('Construir imagen Docker') {
       steps {
         script {
-          dockerImage = docker.build("jcladerabe/miapp:latest")
+          dockerImage = docker.build("${DOCKER_IMAGE}")
         }
       }
     }
-    stage('Push Docker Image') {
+
+    stage('Subir imagen Docker') {
       steps {
-        withDockerRegistry([credentialsId: 'dockerhub-cred-id', url: '']) {
-          dockerImage.push()
+        script {
+          docker.withRegistry('', 'dockerhub-cred-id') {
+            dockerImage.push()
+          }
         }
+      }
+    }
+
+    stage('Desplegar en Kubernetes') {
+      steps {
+        sh 'kubectl apply -f deployment.yaml'
       }
     }
   }
